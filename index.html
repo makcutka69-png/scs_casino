@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SOUL CRYSTAL CASINO</title>
-
 <style>
 body{margin:0;font-family:Arial;background:#120020;color:#fff;text-align:center}
 .panel{background:rgba(30,0,51,.9);margin:10px auto;padding:10px;max-width:420px;border-radius:12px}
@@ -28,7 +27,6 @@ button:disabled{background:#3a1a7a;opacity:.5}
 .dice{font-size:48px;height:60px}
 </style>
 </head>
-
 <body>
 
 <h1>💎 SOUL CRYSTAL CASINO</h1>
@@ -76,7 +74,8 @@ button:disabled{background:#3a1a7a;opacity:.5}
 <option value="odd">Нечёт</option>
 <option value="1">1</option><option value="2">2</option>
 <option value="3">3</option><option value="4">4</option>
-<option value="5">5</option><option value="6">6</option>
+<option value="5">5</option>
+<option value="6">6</option>
 </select>
 <button id="diceBtn" onclick="rollDice()">Roll</button>
 <p id="diceRes"></p>
@@ -124,9 +123,20 @@ button:disabled{background:#3a1a7a;opacity:.5}
 
 <script>
 const ADMINS=["admin","ADMIN"];
-const db=JSON.parse(localStorage.getItem("scs_db")||'{"users":{}}');
+
+// === Telegram WebApp Cache
+const db = (window.Telegram?.WebApp?.initDataStorage
+           ? JSON.parse(window.Telegram.WebApp.initDataStorage.getItem('scs_db') || '{"users":{}}')
+           : JSON.parse(localStorage.getItem("scs_db") || '{"users":{}}'));
+const save = () => {
+ if(window.Telegram?.WebApp?.initDataStorage){
+  window.Telegram.WebApp.initDataStorage.setItem('scs_db', JSON.stringify(db));
+ } else {
+  localStorage.setItem('scs_db', JSON.stringify(db));
+ }
+};
+
 let cur=null;
-const save=()=>localStorage.setItem("scs_db",JSON.stringify(db));
 
 function login(){
  const n=loginName.value,p=loginPass.value;
@@ -195,7 +205,7 @@ function spinSlot(){
  },1900);
 }
 
-/* ===== DICE — ИСПРАВЛЕНО ===== */
+/* ===== DICE ===== */
 function rollDice(){
  const u=db.users[cur],bet=+diceBet.value;
  if(u.bal<bet)return;
