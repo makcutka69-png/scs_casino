@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOUL CRYSTAL CASINO</title>
+
+<style>
+body{margin:0;font-family:Arial;background:#120020;color:#fff;text-align:center}
+.panel{background:rgba(30,0,51,.9);margin:10px auto;padding:10px;max-width:420px;border-radius:12px}
+button,input,select{padding:8px;margin:4px;border-radius:8px;border:none}
+button{background:#6a2adf;color:#fff}
+button:disabled{background:#3a1a7a;opacity:.5}
+.hidden{display:none}
+.admin{border:2px solid #ff4dff}
+
+.slotWrap{display:flex;justify-content:space-around;position:relative}
+.slot{width:80px;height:100px;overflow:hidden;background:#000;border-radius:10px}
+.slotLine{transition:transform 1.8s cubic-bezier(.15,.9,.25,1)}
+.slotLine div{height:100px;display:flex;align-items:center;justify-content:center;font-size:42px}
+.centerLine{position:absolute;top:50%;left:0;right:0;height:2px;background:red}
+
+.wheelWrap{position:relative;overflow:hidden;height:70px;background:#000;border-radius:10px}
+.wheelLine{display:flex}
+.wheelItem{width:90px;min-width:90px;display:flex;align-items:center;justify-content:center;font-size:22px;height:70px}
+.pointer{position:absolute;top:0;bottom:0;left:50%;width:2px;background:#fff}
+
+.dice{font-size:48px;height:60px}
+</style>
+</head>
+
+<body>
+
+<h1>💎 SOUL CRYSTAL CASINO</h1>
+
+<div id="auth" class="panel">
+<input id="loginName" placeholder="Ник">
+<input id="loginPass" type="password" placeholder="Пароль">
+<button onclick="login()">Вход</button>
+</div>
+
+<div id="menu" class="panel hidden">
+<button onclick="openTab('games')">🎮</button>
+<button onclick="openTab('daily')">🎁</button>
+<button onclick="openTab('stats')">📊</button>
+<button onclick="logout()">🚪</button>
+</div>
+
+<div id="header" class="panel hidden">
+👤 <span id="uName"></span> |
+💎 <span id="uBal"></span>
+<span id="luckWrap" class="hidden"> | 🍀 <span id="uLuck"></span>%</span>
+</div>
+
+<div id="games" class="hidden">
+
+<div class="panel">
+<h2>🎰 Slot</h2>
+<div class="slotWrap">
+<div class="centerLine"></div>
+<div class="slot"><div class="slotLine" id="s1"></div></div>
+<div class="slot"><div class="slotLine" id="s2"></div></div>
+<div class="slot"><div class="slotLine" id="s3"></div></div>
+</div>
+<input id="slotBet" type="number" value="10">
+<button id="slotBtn" onclick="spinSlot()">Spin</button>
+<p id="slotRes"></p>
+</div>
+
+<div class="panel">
+<h2>🎲 Dice</h2>
+<div class="dice" id="diceAnim">⚀</div>
+<input id="diceBet" type="number" value="10">
+<select id="diceChoice">
+<option value="even">Чёт</option>
+<option value="odd">Нечёт</option>
+<option value="1">1</option><option value="2">2</option>
+<option value="3">3</option><option value="4">4</option>
+<option value="5">5</option><option value="6">6</option>
+</select>
+<button id="diceBtn" onclick="rollDice()">Roll</button>
+<p id="diceRes"></p>
+</div>
+
+<div class="panel">
+<h2>🎡 Wheel</h2>
+<div class="wheelWrap" id="wheelBox">
+<div class="pointer"></div>
+<div class="wheelLine" id="wheelLine"></div>
+</div>
+<input id="wheelBet" type="number" value="10">
+<button id="wheelBtn" onclick="spinWheel()">Spin</button>
+<p id="wheelRes"></p>
+</div>
+
+<div id="adminPanel" class="panel admin hidden">
+<h2>👑 ADMIN</h2>
+<input id="admUser" placeholder="Ник"><br>
+<input id="admBal" type="number" placeholder="Баланс">
+<button onclick="setBalance()">Баланс</button><br>
+<input id="admLuck" type="number" placeholder="Luck %">
+<button onclick="setLuck()">Luck</button><br>
+<button onclick="resetDaily()">Reset Daily</button>
+</div>
+
+</div>
+
+<div id="daily" class="panel hidden">
+<h2>🎁 Daily</h2>
+<button onclick="dailyGift()">Daily +100</button>
+
+<div class="wheelWrap" id="dailyWheelBox">
+<div class="pointer"></div>
+<div class="wheelLine" id="dailyWheelLine"></div>
+</div>
+
+<button onclick="spinDaily()">Daily Wheel</button>
+<p id="dailyRes"></p>
+</div>
+
+<div id="stats" class="panel hidden">
+<p id="statsText"></p>
+</div>
+
+<script>
+const ADMINS=["admin","ADMIN"];
+const db=JSON.parse(localStorage.getItem("scs_db")||'{"users":{}}');
+let cur=null;
+const save=()=>localStorage.setItem("scs_db",JSON.stringify(db));
+
+function login(){
+ const n=loginName.value,p=loginPass.value;
+ if(!db.users[n])db.users[n]={pass:p,bal:100,luck:25,lastGift:0,lastWheel:0,stats:{slot:0,dice:0,wheel:0}};
+ if(db.users[n].pass!==p)return alert("Пароль неверный");
+ cur=n;
+ auth.classList.add("hidden");
+ menu.classList.remove("hidden");
+ header.classList.remove("hidden");
+ if(ADMINS.includes(n)){adminPanel.classList.remove("hidden");luckWrap.classList.remove("hidden")}
+ draw();
+}
+function logout(){location.reload()}
+function openTab(id){
+ ["games","daily","stats"].forEach(x=>document.getElementById(x).classList.add("hidden"));
+ document.getElementById(id).classList.remove("hidden");
+ if(id==="stats")drawStats();
+}
+function draw(){
+ const u=db.users[cur];
+ uName.textContent=cur;
+ uBal.textContent=u.bal.toFixed(2);
+ uLuck.textContent=u.luck;
+ save(); drawStats();
+}
+function drawStats(){
+ const s=db.users[cur].stats;
+ statsText.textContent=`🎰 ${s.slot} | 🎲 ${s.dice} | 🎡 ${s.wheel}`;
+}
+
+/* ===== SLOT ===== */
+const SYM=["💎","🎱","💯","♠️","♣️","♦️","♥️","❼","7̶7̶7̶"];
+function pickSym(u){
+ if(u.luck>=101)return "7̶7̶7̶";
+ let r=Math.random()*100;
+ if(r<u.luck*0.2)return "7̶7̶7̶";
+ if(r<u.luck*0.5)return "❼";
+ return SYM[Math.random()*SYM.length|0];
+}
+function spinSlot(){
+ const u=db.users[cur],bet=+slotBet.value;
+ if(u.bal<bet)return;
+ slotBtn.disabled=true;
+ u.stats.slot++;u.bal-=bet;
+ const res=[pickSym(u),pickSym(u),pickSym(u)];
+ [s1,s2,s3].forEach((e,i)=>{
+  e.innerHTML="";
+  for(let j=0;j<12;j++)e.innerHTML+=`<div>${SYM[Math.random()*SYM.length|0]}</div>`;
+  e.innerHTML+=`<div>${res[i]}</div>`;
+  e.style.transition="none";e.style.transform="translateY(0)";
+  e.offsetHeight;
+  e.style.transition="transform 1.8s";
+  e.style.transform="translateY(-1200px)";
+ });
+ setTimeout(()=>{
+  let win=0;
+  const[a,b,c]=res;
+  if(a==="7̶7̶7̶"&&b==="7̶7̶7̶"&&c==="7̶7̶7̶")win=bet*12.5;
+  else if(a==="❼"&&b==="❼"&&c==="❼")win=bet*7;
+  else if(a===b&&b===c)win=bet*5;
+  else if(a===b||a===c||b===c)win=bet;
+  u.bal+=win;
+  slotRes.textContent=win?`+${win}`:"0";
+  slotBtn.disabled=false;
+  draw();
+ },1900);
+}
+
+/* ===== DICE — ИСПРАВЛЕНО ===== */
+function rollDice(){
+ const u=db.users[cur],bet=+diceBet.value;
+ if(u.bal<bet)return;
+ diceBtn.disabled=true;
+ u.stats.dice++;
+ u.bal-=bet;
+
+ const choice=diceChoice.value;
+ const bias=Math.min(1,u.luck/100);
+ const rand=a=>a[Math.random()*a.length|0];
+
+ let finalNum;
+ if(choice==="even"){
+  finalNum=Math.random()<bias?rand([2,4,6]):rand([1,3,5]);
+ }else if(choice==="odd"){
+  finalNum=Math.random()<bias?rand([1,3,5]):rand([2,4,6]);
+ }else{
+  finalNum=Math.random()<bias?+choice:(1+Math.floor(Math.random()*6));
+ }
+
+ const faces=["⚀","⚁","⚂","⚃","⚄","⚅"];
+ let t=0;
+ const anim=setInterval(()=>{
+  diceAnim.textContent=faces[Math.random()*6|0];
+  t+=100;
+  if(t>=1200){
+   clearInterval(anim);
+   diceAnim.textContent=faces[finalNum-1];
+
+   const win =
+    (choice==="even" && finalNum%2===0) ||
+    (choice==="odd" && finalNum%2===1) ||
+    (choice==finalNum);
+
+   if(win){
+    u.bal+=bet*2;
+    diceRes.textContent=`Выпало ${finalNum} → +${bet*2}`;
+   }else{
+    diceRes.textContent=`Выпало ${finalNum} → 0`;
+   }
+   diceBtn.disabled=false;
+   draw();
+  }
+ },100);
+}
+
+/* ===== WHEEL ===== */
+const wheelVals=[...Array(201)].map((_,i)=>(i-100)/10);
+function spinWheel(){
+ const u=db.users[cur],bet=+wheelBet.value;
+ if(u.bal<bet)return;
+ wheelBtn.disabled=true;
+ u.stats.wheel++;u.bal-=bet;
+ wheelLine.innerHTML="";wheelLine.style.transition="none";wheelLine.style.transform="translateX(0)";
+ for(let i=0;i<40;i++){
+  let v=wheelVals[Math.random()*wheelVals.length|0];
+  wheelLine.innerHTML+=`<div class="wheelItem">x${v}</div>`;
+ }
+ let res=u.luck>=101?10:wheelVals[Math.random()*wheelVals.length|0];
+ let idx=30;
+ wheelLine.children[idx].textContent="x"+res;
+ wheelLine.offsetHeight;
+ wheelLine.style.transition="transform 4s cubic-bezier(.1,.7,0,1)";
+ wheelLine.style.transform=`translateX(-${idx*90-(wheelBox.clientWidth/2-45)}px)`;
+ setTimeout(()=>{
+  let win=bet*res;
+  u.bal+=win;
+  wheelRes.textContent=`x${res} → ${win}`;
+  wheelBtn.disabled=false;
+  draw();
+ },4200);
+}
+
+/* ===== DAILY ===== */
+function dailyGift(){
+ const u=db.users[cur],n=Date.now();
+ if(n-u.lastGift<86400000)return dailyRes.textContent="Рано";
+ u.lastGift=n;u.bal+=100;dailyRes.textContent="+100";draw();
+}
+function spinDaily(){
+ const u=db.users[cur],n=Date.now();
+ if(n-u.lastWheel<86400000)return dailyRes.textContent="Рано";
+ u.lastWheel=n;
+ dailyWheelLine.innerHTML="";
+ for(let i=0;i<40;i++){
+  let v=50+Math.floor(Math.random()*951);
+  dailyWheelLine.innerHTML+=`<div class="wheelItem">${v}</div>`;
+ }
+ let res=u.luck>=101?1000:(50+Math.floor(Math.random()*951));
+ dailyWheelLine.children[30].textContent=res;
+ dailyWheelLine.style.transition="transform 4s cubic-bezier(.1,.7,0,1)";
+ dailyWheelLine.style.transform=`translateX(-${30*90-(dailyWheelBox.clientWidth/2-45)}px)`;
+ setTimeout(()=>{
+  u.bal+=res;
+  dailyRes.textContent="+"+res;
+  draw();
+ },4200);
+}
+
+/* ===== ADMIN ===== */
+function setBalance(){if(!ADMINS.includes(cur))return;const u=db.users[admUser.value];if(u)u.bal=+admBal.value;draw()}
+function setLuck(){if(!ADMINS.includes(cur))return;const u=db.users[admUser.value];if(u)u.luck=+admLuck.value;draw()}
+function resetDaily(){if(!ADMINS.includes(cur))return;const u=db.users[admUser.value];if(u){u.lastGift=0;u.lastWheel=0;dailyRes.textContent="Дейлики сброшены";save();}}
+</script>
+</body>
+</html>
